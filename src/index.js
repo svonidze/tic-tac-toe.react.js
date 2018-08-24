@@ -11,47 +11,52 @@ function Square(props) {
 }
 
 class Board extends React.Component {
-    renderSquare(i) {
-        return <Square
-            value={this.props.squares[i]}
-            onClick={() => this.props.onClick(i)} />;
+    renderSquare(rowNum, columnNum) {
+        return <Square key={`${rowNum}-${columnNum}`}
+            value={this.props.squares[rowNum][columnNum]}
+            onClick={() => this.props.onClick(rowNum, columnNum)} />;
     }
 
     render() {
-        return (
-            <div>
-                <div className="board-row">
-                    {this.renderSquare(0)}
-                    {this.renderSquare(1)}
-                    {this.renderSquare(2)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(3)}
-                    {this.renderSquare(4)}
-                    {this.renderSquare(5)}
-                </div>
-                <div className="board-row">
-                    {this.renderSquare(6)}
-                    {this.renderSquare(7)}
-                    {this.renderSquare(8)}
-                </div>
-            </div>
-        );
+        console.log('Board', 'render');
+        let rows = [];
+        for (let rowNum in this.props.squares) {
+            let columns = [];
+            for (let columnNum in this.props.squares[rowNum]) {
+                //console.log('board render', rowNum, columnNum, this.props.squares[rowNum][columnNum]);
+
+                columns.push(this.renderSquare(rowNum, columnNum));
+            }
+            // console.log(rowNum, columns);
+            rows.push(<div key={rowNum} className="board-row">{columns}</div>);
+        }
+        return (<div>{rows}</div>);
     }
 }
 
 class Game extends React.Component {
     firstPlayerName = 'X';
+    boardRowNumber = 3;
+    boardColumnNumber = 3;
 
     constructor(props) {
+        const createArray = (row, column) => {
+            let array = Array(row).fill(null);
+            for (let i in array) {
+                array[i] = Array(column).fill(null);
+            }
+            return array;
+        };
+
         super(props);
         this.state = {
-            history: [{
-                squares: Array(9).fill(null),
-                currentPlayerName: this.firstPlayerName,
+            rounds: [{
+                squares: createArray(this.boardRowNumber, this.boardColumnNumber),
+                lastPlayerName: null,
+                winnerPlayerName: null,
+                
             }],
             currentPlayerName: this.firstPlayerName,
-            winnerPlayerName: null,
             stepNumber: 0
         }
     }
@@ -62,56 +67,69 @@ class Game extends React.Component {
             : this.firstPlayerName;
     }
 
-    handleClick(i) {
-        const history = this.state.history.slice(0, this.state.stepNumber + 1);
-        const current = history[history.length - 1];
-        const squares = current.squares.slice();
-        if (squares[i] || this.state.winnerPlayerName)
-            return;
-
-        squares[i] = this.state.currentPlayerName;
-        let state = Object.assign({}, this.state,
-            {
-                history: history.concat([{
-                    squares: squares,
-                    currentPlayerName: this.state.currentPlayerName
-                }]),
-                stepNumber: history.length,
-            });
-
-        const winner = calculateWinner(squares);
-        if (winner) {
-            state.winnerPlayerName = winner;
-            this.setState(state);
-            return;
+    handleClick(rowNum, columnNum) {
+        console.log('Game', 'handleClick', rowNum, columnNum);
+        
+        const rounds = this.state.rounds.slice(0, this.state.stepNumber + 1);
+        const lastRound = rounds[rounds.length - 1];
+        const squares = Array(this.boardRowNumber).fill(null);
+        for(let i in squares) {
+            console.log('before', squares[i] , i, lastRound.squares[i]);
+            squares[i] = lastRound.squares[i].slice();
+            console.log('after', squares[i] , i, lastRound.squares[i]);
         }
 
-        state.currentPlayerName = this.getNextPlayerName(state.currentPlayerName);
+        console.log('Game', 'handleClick', 'last round', squares, lastRound);
+        
+        if (squares[rowNum][columnNum] || lastRound.winnerPlayerName)
+            return;
+
+        const currentPlayerName = this.state.currentPlayerName;
+        squares[rowNum][columnNum] = currentPlayerName;
+        const newRound = {
+            squares: squares,
+            lastPlayerName: currentPlayerName,
+        };
+        let state = //Object.assign({}, this.state,
+            {
+                rounds: rounds.concat([newRound]),
+                stepNumber: rounds.length,
+                currentPlayerName: this.getNextPlayerName(currentPlayerName)
+            };
+        
+        const winner = calculateWinner(squares);
+        if (winner) {
+            newRound.winnerPlayerName = winner;
+        }
 
         this.setState(state);
     }
 
     jumpTo(step) {
-        const historyItem = this.state.history[step];
+        console.log('Game', 'jumpTo', step);
+        const rounds = this.state.rounds.slice(0, step + 1);
+        const round = rounds[step];
         this.setState({
+            rounds: rounds,
             stepNumber: step,
-            currentPlayerName: historyItem.currentPlayerName
+            currentPlayerName: this.getNextPlayerName(round.lastPlayerName)
         });
     }
 
     render() {
-        const history = this.state.history;
-        const current = history[this.state.stepNumber];
-        const status = this.state.winnerPlayerName
-            ? `Congratilation! Player ${this.state.winnerPlayerName} won!`
+        console.log('Game', 'render');
+        const rounds = this.state.rounds;
+        const round = rounds[this.state.stepNumber];
+        const status = round.winnerPlayerName
+            ? `Congratilation! Player ${round.winnerPlayerName} won!`
             : `Player ${this.state.currentPlayerName}, your turn!`;
 
-        const moves = history.map((step, move) => {
+        const moves = rounds.map((step, move) => {
             const desc = move ?
                 `Go to move #${move}` :
                 'Go to game start';
             return (
-                <li key={'history-item' + move}>
+                <li key={'rounds-item' + move}>
                     <button onClick={() => this.jumpTo(move)}>{desc}</button>
                 </li>
             );
@@ -121,8 +139,8 @@ class Game extends React.Component {
             <div className="game">
                 <div className="game-board">
                     <Board
-                        squares={current.squares}
-                        onClick={(i) => this.handleClick(i)} />
+                        squares={round.squares}
+                        onClick={(rowNum, columnNum) => this.handleClick(rowNum, columnNum)} />
                 </div>
                 <div className="game-info">
                     <div>{status}</div>
@@ -142,19 +160,25 @@ ReactDOM.render(
 
 function calculateWinner(squares) {
     const lines = [
-        [0, 1, 2],
-        [3, 4, 5],
-        [6, 7, 8],
-        [0, 3, 6],
-        [1, 4, 7],
-        [2, 5, 8],
-        [0, 4, 8],
-        [2, 4, 6],
+        [{r: 0, c: 0}, {r: 0, c: 1}, {r: 0, c: 2}],
+        [{r: 1, c: 0}, {r: 1, c: 1}, {r: 1, c: 2}],
+        [{r: 2, c: 0}, {r: 2, c: 1}, {r: 2, c: 2}],
+
+        [{r: 0, c: 0}, {r: 1, c: 0}, {r: 2, c: 0}],
+        [{r: 0, c: 1}, {r: 1, c: 1}, {r: 2, c: 1}],
+        [{r: 0, c: 2}, {r: 1, c: 2}, {r: 2, c: 2}],
+
+        [{r: 0, c: 0}, {r: 1, c: 1}, {r: 2, c: 2}],
+        [{r: 0, c: 2}, {r: 1, c: 1}, {r: 2, c: 0}],
     ];
-    for (let i = 0; i < lines.length; i++) {
-        const [a, b, c] = lines[i];
-        if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-            return squares[a];
+    
+    const getValue = (cell) => squares[cell.r][cell.c];
+
+    for (let [cell1, cell2, cell3] of lines) {
+        if (getValue(cell1) 
+            && getValue(cell1) === getValue(cell2) 
+            && getValue(cell1) === getValue(cell3)) {
+            return getValue(cell1);
         }
     }
     return null;

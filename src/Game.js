@@ -8,6 +8,7 @@ class Game extends React.Component {
     firstPlayerName = 'X';
     boardRowNumber = 3;
     boardColumnNumber = 3;
+    totalCellCount = this.boardRowNumber * this.boardColumnNumber;
 
     constructor(props) {
         super(props);
@@ -41,11 +42,9 @@ class Game extends React.Component {
     handleClick(rowNum, columnNum) {
         const rounds = this.state.rounds.slice(0, this.state.stepNumber + 1);
         const lastRound = rounds[rounds.length - 1];
-        const squares = Array(this.boardRowNumber).fill(null);
-        for(let i in squares) {
-            squares[i] = lastRound.squares[i].slice();
-        }
-        
+        const squares = Array(lastRound.squares.length).fill(null)
+            .map((square, i) => square = lastRound.squares[i].slice());
+
         if (squares[rowNum][columnNum] || lastRound.winnerPlayerName)
             return;
 
@@ -81,13 +80,16 @@ class Game extends React.Component {
     }
 
     render() {
-        console.log('Game', 'render');
         const rounds = this.state.rounds;
-        const round = rounds[this.state.stepNumber];
-        const winnerPlayerName = round.winnerPlayerName;
+        const latestRound = rounds[this.state.stepNumber];
+
+        const winnerPlayerName = latestRound.winnerPlayerName;
+        const isDraw = rounds.length > this.totalCellCount;
         const status = winnerPlayerName
             ? `Congratilation! Player ${winnerPlayerName} won!`
-            : `Player ${this.state.currentPlayerName}, your turn!`;
+            : isDraw 
+                ? 'Draw! No moves left.' 
+                :`Player ${this.state.currentPlayerName}, your turn!`;
 
         const moves = rounds.map((round, move) => {
             const desc = move ?
@@ -104,7 +106,7 @@ class Game extends React.Component {
             <div className="game">
                 <div className="game-board">
                     <Board
-                        squares={round.squares}
+                        squares={latestRound.squares}
                         onClick={(rowNum, columnNum) => this.handleClick(rowNum, columnNum)} />
                 </div>
                 <div className="game-info">

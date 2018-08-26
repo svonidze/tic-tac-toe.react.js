@@ -12,7 +12,6 @@ class Board extends React.Component {
     }
 
     render() {
-        console.log('Board', 'render');
         let rows = [];
         for (let rowNum in this.props.squares) {
             let columns = [];
